@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>YouTubeDiscordPresence</title>
+    <organization>com.ytdp</organization>
+
+    <!-- Install to the system volume; no destination-selection pane. -->
+    <domains enable_localSystem="true"/>
+    <options customize="never" require-scripts="true" hostArchitectures="x86_64,arm64"/>
+
+    <welcome    file="welcome.html"    mime-type="text/html"/>
+    <license    file="LICENSE.txt"     mime-type="text/plain"/>
+    <conclusion file="conclusion.html" mime-type="text/html"/>
+
+    <choices-outline>
+        <line choice="default">
+            <line choice="com.ytdp.discord.presence.host"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="com.ytdp.discord.presence.host" visible="false">
+        <pkg-ref id="com.ytdp.discord.presence.host"/>
+    </choice>
+
+    <pkg-ref id="com.ytdp.discord.presence.host" version="1.6.1" onConclusion="none">YTDPhost.pkg</pkg-ref>
+</installer-gui-script>

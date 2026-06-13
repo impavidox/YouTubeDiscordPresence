@@ -13,10 +13,36 @@ Store exactly as on Windows.
 
 | File | Purpose |
 |------|---------|
+| `installer/` | Sources for the double-click **`YTDPsetup.pkg`** installer (see below) |
 | `install.sh` | Registers `YTDPmac` as the native host for all Chromium browsers found |
 | `uninstall.sh` | Removes the manifests |
 
 The compiled binary is produced at `NodeHost/dist/YTDPmac`.
+
+## Install (recommended: the `.pkg`)
+
+The easiest path for end users is the **`YTDPsetup.pkg`** installer (the macOS
+counterpart of the Windows `.msi`). It:
+
+- ships **both** CPU slices and installs the one matching your Mac as
+  `YTDPmac` in `/Library/Application Support/YouTubeDiscordPresence/` — Apple
+  Silicon gets the **native arm64** build (no Rosetta), Intel gets x86_64,
+- registers the native-messaging host for the logged-in user's Chromium-family
+  browsers automatically (postinstall script), and
+- bundles `install.sh` / `uninstall.sh` next to the binary for later use.
+
+> **Unsigned package.** There's no Apple Developer ID, so Gatekeeper will block a
+> double-click of a downloaded `.pkg` ("Apple cannot check it for malicious
+> software"). **Right-click the `.pkg` → Open**, or go to **System Settings →
+> Privacy & Security → Open Anyway**. The bundled binary is ad-hoc signed and
+> the installer clears its quarantine flag, so it runs once installed.
+
+After installing: fully quit and reopen your browser, make sure the **Discord
+desktop app** is running, then play a YouTube / YouTube Music tab.
+
+To uninstall, run `uninstall.sh` from
+`/Library/Application Support/YouTubeDiscordPresence/`, then delete that folder
+(`sudo rm -rf "/Library/Application Support/YouTubeDiscordPresence"`).
 
 ## Build (only needed if you want to recompile)
 
@@ -24,16 +50,45 @@ From `NodeHost/`:
 
 ```bash
 npm install
-npm run compile-mac        # -> NodeHost/dist/YTDPmac  (node18-macos-x64)
+npm run compile-mac          # -> NodeHost/dist/YTDPmac        (node18-macos-x64)
+npm run compile-mac-arm64    # -> NodeHost/dist/YTDPmac-arm64  (node18-macos-arm64)
 ```
 
-`YTDPmac` is built for **x86_64**. It runs natively on Intel Macs and under
-Rosetta 2 on Apple Silicon (see troubleshooting if you're on an M-series Mac).
-A native `arm64` build can't be cross-compiled from Windows — `pkg` has no
-prebuilt arm64 base and falls back to compiling Node from source, which fails
-off-platform. Build arm64 on a Mac with `pkg -t node18-macos-arm64`.
+Two thin binaries, one per CPU. `pkg` can't make a working *universal* binary:
+it bakes the payload's absolute file offset into each executable, so `lipo`-ing
+the slices together relocates them and the runtime reads the wrong offset.
+The `.pkg` ships both and installs the right one (see above).
 
-## Install
+The **arm64** slice must be built **on a Mac** — `pkg` has no prebuilt arm64
+base for cross-compilation from Windows (it falls back to building Node from
+source, which fails off-platform). The x86_64 slice cross-compiles fine and
+also runs on Apple Silicon under Rosetta 2.
+
+## Build the installer (`.pkg`)
+
+`installer/build-pkg.sh` produces the double-click `YTDPsetup.pkg` **from
+scratch** — it clean-recompiles **both** slices, ad-hoc signs them, then runs
+`pkgbuild` + `productbuild`:
+
+```bash
+MacHost/installer/build-pkg.sh          # -> MacHost/installer/dist/YTDPsetup.pkg
+SKIP_COMPILE=1 MacHost/installer/build-pkg.sh   # reuse existing NodeHost/dist/YTDPmac{,-arm64}
+```
+
+| Path | Purpose |
+|------|---------|
+| `installer/build-pkg.sh` | The from-scratch build script (builds x86_64 + arm64) |
+| `installer/scripts/postinstall` | Runs as root after install; keeps the slice matching the Mac's hardware (`sysctl hw.optional.arm64`) as `YTDPmac`, then registers the host for the console user |
+| `installer/distribution.xml` | `productbuild` layout (title, welcome/license/conclusion panes, system-volume install) |
+| `installer/resources/` | `welcome.html` / `conclusion.html` shown in the installer UI |
+
+The resulting `.pkg` is git-ignored (like `YTDPwin.exe` / the `.msi`) — attach it
+to a GitHub Release. It is **unsigned** (no Developer ID); see the Gatekeeper
+note above.
+
+## Install (manual / advanced)
+
+You can also register the binary by hand instead of using the `.pkg`:
 
 1. Put `YTDPmac` in a **permanent** folder (the manifest hard-codes its
    absolute path — don't run it from `~/Downloads` and then delete it).
@@ -60,8 +115,9 @@ chmod +x uninstall.sh
 
 ## Troubleshooting
 
-**Apple Silicon (M1/M2/M3…):** the binary is x86_64, so Rosetta 2 must be
-present. It usually is, but to be sure:
+**Apple Silicon (M1/M2/M3…):** the `.pkg` installs the **native arm64** slice,
+so Rosetta 2 is **not** needed. You only need Rosetta if you manually run the
+**x86_64** binary (`NodeHost/dist/YTDPmac`) on Apple Silicon — to install it:
 
 ```bash
 softwareupdate --install-rosetta --agree-to-license

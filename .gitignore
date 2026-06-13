@@ -17,6 +17,9 @@ Host/YTDPwin/YTDPsetup/Release
 *.exe
 *.out
 *.zip
+*.pkg
+MacHost/installer/build/
+MacHost/installer/dist/
 NodeHost/node_modules
 NodeHost/src/app-linux
 NodeHost/src/app-macos

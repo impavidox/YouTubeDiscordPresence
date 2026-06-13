@@ -50,12 +50,13 @@ This fork differs from upstream as follows. All changes are in the desktop compo
 ### Faster Discord connection
 - `RPC_CONNECTION_TIMEOUT` in `discord-rpc` was lowered from **10 s to 2 s**, so a missing or closed Discord pipe is given up on quickly. This is persisted in `NodeHost/patches/discord-rpc+4.0.1.patch` (applied automatically by `patch-package` on `npm install`), alongside the existing multi-client pipe patch.
 
-### macOS support (x64 / Rosetta 2)
+### macOS support (Apple Silicon + Intel)
 - New `MacHost/` folder with `install.sh` / `uninstall.sh` that register the native-messaging host on macOS. The manifest is dropped into each Chromium browser's `NativeMessagingHosts` directory with an **absolute** binary path (macOS does not allow the relative path used by the Windows build).
-- Build with `npm run compile-mac` → `NodeHost/dist/YTDPmac` (target `node18-macos-x64`). It runs natively on Intel Macs and under **Rosetta 2** on Apple Silicon. A native `arm64` binary must be built on a Mac (`pkg -t node18-macos-arm64`); it cannot be cross-compiled from Windows. See [`MacHost/README.md`](MacHost/README.md) for full install and troubleshooting steps.
-- The compiled binary is **not** committed (binaries are git-ignored, same as `YTDPwin.exe`); attach `YTDPmac` to a GitHub Release instead.
+- Build with `npm run compile-mac` → `NodeHost/dist/YTDPmac` (`node18-macos-x64`) and `npm run compile-mac-arm64` → `NodeHost/dist/YTDPmac-arm64` (`node18-macos-arm64`). The arm64 slice must be built on a Mac (no prebuilt `pkg` base for cross-compilation from Windows). `pkg` can't produce a working *universal* binary — it bakes the payload's absolute offset into each executable, so `lipo` breaks it — hence two thin slices. See [`MacHost/README.md`](MacHost/README.md) for full install and troubleshooting steps.
+- The compiled binaries are **not** committed (binaries are git-ignored, same as `YTDPwin.exe`); attach `YTDPmac`/`YTDPmac-arm64` to a GitHub Release, or the `.pkg` below.
+- A double-click **`YTDPsetup.pkg`** installer (the macOS counterpart of the Windows `.msi`) can be built with `MacHost/installer/build-pkg.sh`. It ships both slices and installs the one matching the Mac — **native arm64 on Apple Silicon (no Rosetta)**, x86_64 on Intel — to `/Library/Application Support/YouTubeDiscordPresence/` and registers the native host automatically. The `.pkg` is unsigned (no Apple Developer ID), so users must right-click → Open the first time.
 
-> **Note:** the macOS build has been verified as a valid `x86_64` Mach-O binary and the IPC/native-messaging plumbing is platform-correct, but it has not yet been runtime-tested end-to-end on a Mac.
+> **Note:** both the `x86_64` and `arm64` binaries have been verified as valid Mach-O executables that load and run the embedded `app.js`, and the IPC/native-messaging plumbing is platform-correct, but the full Discord-presence flow has not yet been runtime-tested end-to-end on a Mac.
 
 ### No-admin script installers
 - `WinHost/install.ps1` registers the native host on Windows **per-user, without administrator rights** — a lightweight alternative to `YTDPsetup.msi` (copies the exe to `%LOCALAPPDATA%` and writes the `HKCU` registration for Chrome/Edge/Brave). `MacHost/install.sh` is the macOS equivalent. Existing MSI users can still just swap `YTDPwin.exe`.
@@ -91,8 +92,13 @@ Desktop application (Windows):
    - Building the `.msi`: Download **Visual Studio 2026** with the **Microsoft Visual Studio Installer Project** extension. Open `Host\YTDPwin\YTDPsetup\YTDPsetup.vdproj` and build `YTDPsetup`.
 
 Desktop application (macOS):
-   - `npm run compile-mac` (produces `NodeHost/dist/YTDPmac`, target `node18-macos-x64`).
-   - Register it with `MacHost/install.sh`. See [`MacHost/README.md`](MacHost/README.md).
+   - `npm run compile-mac` (x86_64) and `npm run compile-mac-arm64` (arm64) produce `NodeHost/dist/YTDPmac` and `NodeHost/dist/YTDPmac-arm64`.
+   - Register one with `MacHost/install.sh`, **or** build the double-click installer:
+     `MacHost/installer/build-pkg.sh` → `MacHost/installer/dist/YTDPsetup.pkg` (the
+     macOS counterpart of the Windows `.msi`; clean-recompiles **both** slices from
+     scratch, then `pkgbuild` + `productbuild`, and installs the slice matching the
+     Mac — native arm64 on Apple Silicon). It's unsigned — see
+     [`MacHost/README.md`](MacHost/README.md) for the Gatekeeper note and full steps.
 
 Extension:
    - Download the `Extension` directory, compress it into a zip, and load it onto your browser manually.

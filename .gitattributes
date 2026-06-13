@@ -4,3 +4,6 @@
 *.patch text eol=lf
 *.md    text eol=lf
 *.ps1   text eol=lf
+# The pkg installer scripts are extensionless but are still shell.
+MacHost/installer/scripts/postinstall text eol=lf
+MacHost/installer/scripts/preinstall text eol=lf

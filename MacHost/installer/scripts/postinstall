@@ -1,0 +1,103 @@
+#!/bin/bash
+#
+# YouTubeDiscordPresence .pkg postinstall
+#
+# Runs as root after the payload is laid down. Native-messaging manifests are
+# per-user, so this targets the console (logged-in GUI) user rather than root,
+# registering the installed YTDPmac binary for every Chromium-family browser
+# that user has. Mirrors MacHost/install.sh's paths -- the validated set.
+#
+# Must exit 0 or the install is reported as failed, so every risky step is
+# guarded and we never use `set -e`.
+#
+set -u
+
+HOST_NAME="com.ytdp.discord.presence"
+EXT_ORIGIN="chrome-extension://hnmeidgkfcbpjjjpmjmpehjdljlaeaaa/"
+DIR="/Library/Application Support/YouTubeDiscordPresence"
+BIN="$DIR/YTDPmac"
+
+# --- pick the slice that matches this Mac ------------------------------------
+# The payload ships both YTDPmac-x64 and YTDPmac-arm64 (pkg binaries can't be
+# lipo'd into a working universal). Keep the native one as YTDPmac, drop the
+# other. Detect the *hardware* arch (sysctl), not the script's process arch.
+if [ "$(/usr/sbin/sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ]; then
+  SRC="$DIR/YTDPmac-arm64"
+else
+  SRC="$DIR/YTDPmac-x64"
+fi
+if [ -f "$SRC" ]; then
+  mv -f "$SRC" "$BIN"
+fi
+rm -f "$DIR/YTDPmac-x64" "$DIR/YTDPmac-arm64"
+
+if [ ! -f "$BIN" ]; then
+  echo "YTDP: no matching YTDPmac slice found; install incomplete." >&2
+  exit 1
+fi
+
+# --- make the binary runnable -------------------------------------------------
+chmod +x "$BIN" 2>/dev/null || true
+# Payload files aren't normally quarantined, but clear it just in case.
+xattr -dr com.apple.quarantine "$BIN" 2>/dev/null || true
+
+# --- identify the human installing this --------------------------------------
+# pkg scripts run as root; figure out the console (GUI) user, fall back to $USER.
+CONSOLE_USER="$(/usr/bin/stat -f%Su /dev/console 2>/dev/null || true)"
+if [ -z "${CONSOLE_USER:-}" ] || [ "$CONSOLE_USER" = "root" ]; then
+  CONSOLE_USER="${USER:-}"
+fi
+if [ -z "${CONSOLE_USER:-}" ] || [ "$CONSOLE_USER" = "root" ]; then
+  echo "YTDP: could not determine the logged-in user; skipping per-user registration." >&2
+  echo "      Run /Library/Application Support/YouTubeDiscordPresence/install.sh manually." >&2
+  exit 0
+fi
+
+USER_HOME="$(/usr/bin/dscl . -read "/Users/$CONSOLE_USER" NFSHomeDirectory 2>/dev/null | /usr/bin/awk '{print $2}')"
+[ -z "${USER_HOME:-}" ] && USER_HOME="/Users/$CONSOLE_USER"
+
+APP_SUPPORT="$USER_HOME/Library/Application Support"
+BROWSER_DIRS=(
+  "$APP_SUPPORT/Google/Chrome"
+  "$APP_SUPPORT/Google/Chrome Beta"
+  "$APP_SUPPORT/Google/Chrome Canary"
+  "$APP_SUPPORT/Chromium"
+  "$APP_SUPPORT/Microsoft Edge"
+  "$APP_SUPPORT/BraveSoftware/Brave-Browser"
+  "$APP_SUPPORT/Vivaldi"
+)
+
+write_manifest() {
+  local nmh="$1/NativeMessagingHosts"
+  mkdir -p "$nmh"
+  cat > "$nmh/$HOST_NAME.json" <<EOF
+{
+    "name": "$HOST_NAME",
+    "description": "Component of the YouTubeDiscordPresence extension that allows the usage of native messaging.",
+    "path": "$BIN",
+    "type": "stdio",
+    "allowed_origins": [
+        "$EXT_ORIGIN"
+    ]
+}
+EOF
+  # Created as root -- hand ownership back to the user.
+  chown "$CONSOLE_USER" "$nmh" "$nmh/$HOST_NAME.json" 2>/dev/null || true
+  echo "  registered -> $nmh/$HOST_NAME.json"
+}
+
+installed_any=0
+for d in "${BROWSER_DIRS[@]}"; do
+  if [ -d "$d" ]; then
+    write_manifest "$d"
+    installed_any=1
+  fi
+done
+
+if [ "$installed_any" -eq 0 ]; then
+  echo "YTDP: no Chromium-family browser profile found for $CONSOLE_USER; registering Google Chrome by default."
+  write_manifest "$APP_SUPPORT/Google/Chrome"
+fi
+
+echo "YTDP: native host registered for $CONSOLE_USER."
+exit 0
