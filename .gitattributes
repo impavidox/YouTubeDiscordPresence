@@ -1,0 +1,4 @@
+# Shell scripts and patches must stay LF on every platform.
+# With CRLF they fail on macOS/Linux ("bad interpreter: /usr/bin/env bash^M").
+*.sh text eol=lf
+*.patch text eol=lf
