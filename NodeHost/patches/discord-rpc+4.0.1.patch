@@ -1,5 +1,18 @@
+diff --git a/node_modules/discord-rpc/src/client.js b/node_modules/discord-rpc/src/client.js
+index 0ff29da..3023281 100644
+--- a/node_modules/discord-rpc/src/client.js
++++ b/node_modules/discord-rpc/src/client.js
+@@ -97,7 +97,7 @@ class RPCClient extends EventEmitter {
+     }
+     this._connectPromise = new Promise((resolve, reject) => {
+       this.clientId = clientId;
+-      const timeout = setTimeout(() => reject(new Error('RPC_CONNECTION_TIMEOUT')), 10e3);
++      const timeout = setTimeout(() => reject(new Error('RPC_CONNECTION_TIMEOUT')), 2000);
+       timeout.unref();
+       this.once('connected', () => {
+         clearTimeout(timeout);
 diff --git a/node_modules/discord-rpc/src/transports/ipc.js b/node_modules/discord-rpc/src/transports/ipc.js
-index f050a01..9f0818a 100644
+index f050a01..2e7979a 100644
 --- a/node_modules/discord-rpc/src/transports/ipc.js
 +++ b/node_modules/discord-rpc/src/transports/ipc.js
 @@ -40,6 +40,20 @@ function getIPC(id = 0) {

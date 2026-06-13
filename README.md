@@ -38,6 +38,27 @@ Still confused? Watch the **installation tutorial** on YouTube using [**<ins>thi
 
 ---
 
+## Fork Modifications
+
+This fork differs from upstream as follows. All changes are in the desktop component (`NodeHost`) plus a new `MacHost` folder — **the browser extension is unchanged.**
+
+### Presence layout
+- The **song title and artist/channel name now appear together** on the member-list name line as `Artist · Song`. This is implemented in `NodeHost/src/app.js` (`restructurePresence`) by injecting a `name` field into the raw `SET_ACTIVITY` payload: Discord renders that field in the server member-list sidebar, whereas the standard `details`/`state` fields only show inside the profile pop-up card.
+- The secondary line shows the platform / status: `YouTube`, `YouTube Music`, or `Live on YouTube`.
+- The small "playing icon" badge (whose hover text linked back to the GitHub repo) has been **removed** by stripping `small_image`/`small_text` from the activity assets.
+
+### Faster Discord connection
+- `RPC_CONNECTION_TIMEOUT` in `discord-rpc` was lowered from **10 s to 2 s**, so a missing or closed Discord pipe is given up on quickly. This is persisted in `NodeHost/patches/discord-rpc+4.0.1.patch` (applied automatically by `patch-package` on `npm install`), alongside the existing multi-client pipe patch.
+
+### macOS support (x64 / Rosetta 2)
+- New `MacHost/` folder with `install.sh` / `uninstall.sh` that register the native-messaging host on macOS. The manifest is dropped into each Chromium browser's `NativeMessagingHosts` directory with an **absolute** binary path (macOS does not allow the relative path used by the Windows build).
+- Build with `npm run compile-mac` → `NodeHost/dist/YTDPmac` (target `node18-macos-x64`). It runs natively on Intel Macs and under **Rosetta 2** on Apple Silicon. A native `arm64` binary must be built on a Mac (`pkg -t node18-macos-arm64`); it cannot be cross-compiled from Windows. See [`MacHost/README.md`](MacHost/README.md) for full install and troubleshooting steps.
+- The compiled binary is **not** committed (binaries are git-ignored, same as `YTDPwin.exe`); attach `YTDPmac` to a GitHub Release instead.
+
+> **Note:** the macOS build has been verified as a valid `x86_64` Mach-O binary and the IPC/native-messaging plumbing is platform-correct, but it has not yet been runtime-tested end-to-end on a Mac.
+
+---
+
 ## Troubleshooting/Known Issues
 
 - The `Listen Along` and `View Channel` buttons in the rich presence don't show when looking at your own profile, but it will show for others. See the example image above. This is a Discord [**<ins>limitation</ins>**](https://github.com/discordjs/RPC/issues/180#issuecomment-2313232518).
@@ -60,11 +81,15 @@ Go [here](https://github.com/XFG16/YouTubeDiscordPresence/issues/new/choose) and
 
 ## Building
 
-Desktop application:
+Desktop application (Windows):
    - `npm run compile`
    - Replace the existing `YTDPwin.exe` in `C:\Program Files\YouTubeDiscordPresence` with the newly compiled one.
 
    - Building the `.msi`: Download **Visual Studio 2026** with the **Microsoft Visual Studio Installer Project** extension. Open `Host\YTDPwin\YTDPsetup\YTDPsetup.vdproj` and build `YTDPsetup`.
+
+Desktop application (macOS):
+   - `npm run compile-mac` (produces `NodeHost/dist/YTDPmac`, target `node18-macos-x64`).
+   - Register it with `MacHost/install.sh`. See [`MacHost/README.md`](MacHost/README.md).
 
 Extension:
    - Download the `Extension` directory, compress it into a zip, and load it onto your browser manually.

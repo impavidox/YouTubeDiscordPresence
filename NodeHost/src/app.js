@@ -213,6 +213,38 @@ const flushChunksQueue = () => {
     chunks.splice(0);
 };
 
+function restructurePresence(json) {
+    let pd = Object.assign({}, json.presenceData);
+    let title = json.jsTitle || pd.details || "";
+    let author = json.jsAuthor || "";
+
+    let applicationType = json.jsApplicationType || currentApplication.type;
+
+    // Override the sidebar/member-list name line (and popup details) with "Artist · Song".
+    if (title && author) {
+        let combined = `${author} · ${title}`;
+        pd.name = combined.substring(0, 128);
+        pd.details = combined.substring(0, 128).padEnd(2, '​');
+    }
+
+    if (json.jsTimeLeft === -1) {
+        pd.state = "Live on YouTube";
+    } else if (applicationType === "youtubeMusic") {
+        pd.state = "YouTube Music";
+    } else {
+        pd.state = "YouTube";
+    }
+
+    // Strip the small "playing icon" badge — its hover text points at the GitHub repo.
+    if (pd.assets) {
+        pd.assets = Object.assign({}, pd.assets);
+        delete pd.assets.small_image;
+        delete pd.assets.small_text;
+    }
+
+    return pd;
+}
+
 function handleExtensionPayload(json) {
     if (json.jsApplicationType && json.jsApplicationType != currentApplication.type) {
         currentApplication.type = json.jsApplicationType;
@@ -233,12 +265,12 @@ function handleExtensionPayload(json) {
             await discoverAndConnect();
 
             // Update presence on all new clients
-            updatePresence(json.presenceData, 0);
+            updatePresence(restructurePresence(json), 0);
         }
         clearPresence(resetPresence);
     }
     else {
-        updatePresence(json.presenceData, 0);
+        updatePresence(restructurePresence(json), 0);
     }
 }
 

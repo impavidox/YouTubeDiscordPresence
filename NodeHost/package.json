@@ -8,6 +8,7 @@
     "postinstall": "patch-package",
     "precompile": "node scripts/precompile.js",
     "compile": "npx pkg -t node14-win . -o src/YTDPwin.exe",
+    "compile-mac": "node scripts/precompile.js && npx pkg -t node18-macos-x64 . -o dist/YTDPmac",
     "postcompile": "node scripts/postcompile.js",
     "postversion": "echo also update version in `background.js`, `manifest.json`, and when building!"
   },
