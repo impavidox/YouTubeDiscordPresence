@@ -57,6 +57,9 @@ This fork differs from upstream as follows. All changes are in the desktop compo
 
 > **Note:** the macOS build has been verified as a valid `x86_64` Mach-O binary and the IPC/native-messaging plumbing is platform-correct, but it has not yet been runtime-tested end-to-end on a Mac.
 
+### No-admin script installers
+- `WinHost/install.ps1` registers the native host on Windows **per-user, without administrator rights** — a lightweight alternative to `YTDPsetup.msi` (copies the exe to `%LOCALAPPDATA%` and writes the `HKCU` registration for Chrome/Edge/Brave). `MacHost/install.sh` is the macOS equivalent. Existing MSI users can still just swap `YTDPwin.exe`.
+
 ---
 
 ## Troubleshooting/Known Issues

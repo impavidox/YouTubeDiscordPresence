@@ -1,4 +1,6 @@
-# Shell scripts and patches must stay LF on every platform.
-# With CRLF they fail on macOS/Linux ("bad interpreter: /usr/bin/env bash^M").
-*.sh text eol=lf
+# Keep cross-platform text files at LF so they don't churn between Windows/macOS.
+# Shell scripts in particular break on macOS/Linux with CRLF ("bad interpreter ^M").
+*.sh    text eol=lf
 *.patch text eol=lf
+*.md    text eol=lf
+*.ps1   text eol=lf
